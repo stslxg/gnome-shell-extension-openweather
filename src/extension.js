@@ -141,7 +141,7 @@ const OPENWEATHER_CONV_MPS_IN_KNOTS = 1.94384449;
 const OPENWEATHER_CONV_MPS_IN_FPS = 3.2808399;
 
 let _httpSession;
-let _currentWeatherCache, _forecastWeatherCache;
+let _currentWeatherCache, _forecastDailyWeatherCache;
 let _timeCacheCurrentWeather, _timeCacheForecastWeather;
 
 const OpenweatherMenuButton = new Lang.Class({
@@ -292,7 +292,7 @@ const OpenweatherMenuButton = new Lang.Class({
         }));
 
         this.currentWeatherCache = _currentWeatherCache;
-        this.forecastWeatherCache = _forecastWeatherCache;
+        this.forecastDailyWeatherCache = _forecastDailyWeatherCache;
         if (_timeCacheForecastWeather !== undefined) {
             let diff = Math.floor(new Date(new Date() - _timeCacheForecastWeather).getTime() / 1000);
             if (diff < this._refresh_interval_forecast)
@@ -326,7 +326,7 @@ const OpenweatherMenuButton = new Lang.Class({
     },
 
     stop: function() {
-        _forecastWeatherCache = this.forecastWeatherCache;
+        _forecastDailyWeatherCache = this.forecastDailyWeatherCache;
         _currentWeatherCache = this.currentWeatherCache;
 
         if (_httpSession !== undefined)
@@ -478,11 +478,11 @@ const OpenweatherMenuButton = new Lang.Class({
             if (this.providerChanged()) {
                 this.switchProvider();
                 this.currentWeatherCache = undefined;
-                this.forecastWeatherCache = undefined;
+                this.forecastDailyWeatherCache = undefined;
             }
             if (this.locationChanged()) {
                 this.currentWeatherCache = undefined;
-                this.forecastWeatherCache = undefined;
+                this.forecastDailyWeatherCache = undefined;
             }
             this.rebuildButtonMenu();
             this.parseWeatherCurrent();
@@ -497,11 +497,11 @@ const OpenweatherMenuButton = new Lang.Class({
             if (this.providerChanged()) {
                 this.switchProvider();
                 this.currentWeatherCache = undefined;
-                this.forecastWeatherCache = undefined;
+                this.forecastDailyWeatherCache = undefined;
             }
             if (this.locationChanged()) {
                 this.currentWeatherCache = undefined;
-                this.forecastWeatherCache = undefined;
+                this.forecastDailyWeatherCache = undefined;
             }
             this.parseWeatherCurrent();
         }));
@@ -549,7 +549,7 @@ const OpenweatherMenuButton = new Lang.Class({
                 this.currentWeatherCache = undefined;
             if (_timeCacheForecastWeather &&
                 (Math.floor(new Date(now - _timeCacheForecastWeather).getTime() / 1000) > this._refresh_interval_forecast))
-                this.forecastWeatherCache = undefined;
+                this.forecastDailyWeatherCache = undefined;
             this.parseWeatherCurrent();
         }
     },
@@ -908,7 +908,7 @@ const OpenweatherMenuButton = new Lang.Class({
             this._reloadButton.set_label(this._reloadButton.get_accessible_name());
         this._reloadButton.connect('clicked', Lang.bind(this, function() {
             this.currentWeatherCache = undefined;
-            this.forecastWeatherCache = undefined;
+            this.forecastDailyWeatherCache = undefined;
             this.parseWeatherCurrent();
             this.recalcLayout();
         }));
@@ -1048,15 +1048,15 @@ const OpenweatherMenuButton = new Lang.Class({
         if (this._buttonBox1MinWidth === undefined)
             this._buttonBox1MinWidth = this._buttonBox1.get_width();
         this._buttonBox1.set_width(Math.max(this._buttonBox1MinWidth, this._currentWeather.get_width() - this._buttonBox2.get_width()));
-        if (this._forecastScrollBox !== undefined && this._forecastBox !== undefined && this._currentWeather !== undefined) {
-            this._forecastScrollBox.set_width(Math.max(this._currentWeather.get_width(), (this._buttonBox1.get_width() + this._buttonBox2.get_width())));
-            this._forecastScrollBox.show();
-            if (this._forecastBox.get_preferred_width(this._forecastBox.get_height())[0] > this._currentWeather.get_width()) {
-                this._forecastScrollBox.hscroll.margin_top = 10;
-                this._forecastScrollBox.hscroll.show();
+        if (this._dailyForecastScrollBox !== undefined && this._dailyForecastBox !== undefined && this._currentWeather !== undefined) {
+            this._dailyForecastScrollBox.set_width(Math.max(this._currentWeather.get_width(), (this._buttonBox1.get_width() + this._buttonBox2.get_width())));
+            this._dailyForecastScrollBox.show();
+            if (this._dailyForecastBox.get_preferred_width(this._dailyForecastBox.get_height())[0] > this._currentWeather.get_width()) {
+                this._dailyForecastScrollBox.hscroll.margin_top = 10;
+                this._dailyForecastScrollBox.hscroll.show();
             } else {
-                this._forecastScrollBox.hscroll.margin_top = 0;
-                this._forecastScrollBox.hscroll.hide();
+                this._dailyForecastScrollBox.hscroll.margin_top = 0;
+                this._dailyForecastScrollBox.hscroll.hide();
             }
         }
     },
@@ -1409,7 +1409,7 @@ const OpenweatherMenuButton = new Lang.Class({
         this._timeoutForecast = Mainloop.timeout_add_seconds(interval, Lang.bind(this, function() {
             // only invalidate cached data, if we can connect the weather-providers server
             if (this._connected && !this._idle)
-                this.forecastWeatherCache = undefined;
+                this.forecastDailyWeatherCache = undefined;
             this.parseWeatherForecast();
             return true;
         }));
@@ -1554,53 +1554,53 @@ const OpenweatherMenuButton = new Lang.Class({
         this._currentWeather.set_child(box);
     },
 
-    scrollForecastBy: function(delta) {
-        if (this._forecastScrollBox === undefined)
+    scrollDailyForecastBy: function(delta) {
+        if (this._dailyForecastScrollBox === undefined)
             return;
-        this._forecastScrollBox.hscroll.adjustment.value += delta;
+        this._dailyForecastScrollBox.hscroll.adjustment.value += delta;
     },
 
-    rebuildFutureWeatherUi: function(cnt) {
+    rebuildFutureWeatherUi: function(dailyCnt) {
         this.destroyFutureWeather();
 
-        this._forecast = [];
-        this._forecastBox = new St.BoxLayout({
+        this._dailyForecast = [];
+        this._dailyForecastBox = new St.BoxLayout({
             x_align: this._center_forecast ? St.Align.END : St.Align.START,
             style_class: 'openweather-forecast-box'
         });
 
-        this._forecastScrollBox = new St.ScrollView({
+        this._dailyForecastScrollBox = new St.ScrollView({
             style_class: 'openweather-forecasts'
         });
 
-        let pan = new Clutter.PanAction({
+        let dailyPan = new Clutter.PanAction({
             interpolate: true
         });
-        pan.connect('pan', Lang.bind(this, function(action) {
+        dailyPan.connect('pan', Lang.bind(this, function(action) {
 
             let[dist, dx, dy] = action.get_motion_delta(0);
 
-            this.scrollForecastBy(-1 * (dx / this._forecastScrollBox.width) * this._forecastScrollBox.hscroll.adjustment.page_size);
+            this.scrollDailyForecastBy(-1 * (dx / this._dailyForecastScrollBox.width) * this._dailyForecastScrollBox.hscroll.adjustment.page_size);
             return false;
         }));
-        this._forecastScrollBox.add_action(pan);
+        this._dailyForecastScrollBox.add_action(dailyPan);
 
-        this._forecastScrollBox.connect('scroll-event', Lang.bind(this, this._onScroll));
-        this._forecastScrollBox.hscroll.connect('scroll-event', Lang.bind(this, this._onScroll));
+        this._dailyForecastScrollBox.connect('scroll-event', Lang.bind(this, this._onDailyScroll));
+        this._dailyForecastScrollBox.hscroll.connect('scroll-event', Lang.bind(this, this._onDailyScroll));
 
-        this._forecastScrollBox.hscroll.margin_right = 25;
-        this._forecastScrollBox.hscroll.margin_left = 25;
-        this._forecastScrollBox.hscroll.hide();
-        this._forecastScrollBox.vscrollbar_policy = Gtk.PolicyType.NEVER;
-        this._forecastScrollBox.hscrollbar_policy = Gtk.PolicyType.AUTOMATIC;
-        this._forecastScrollBox.enable_mouse_scrolling = true;
-        this._forecastScrollBox.hide();
+        this._dailyForecastScrollBox.hscroll.margin_right = 25;
+        this._dailyForecastScrollBox.hscroll.margin_left = 25;
+        this._dailyForecastScrollBox.hscroll.hide();
+        this._dailyForecastScrollBox.vscrollbar_policy = Gtk.PolicyType.NEVER;
+        this._dailyForecastScrollBox.hscrollbar_policy = Gtk.PolicyType.AUTOMATIC;
+        this._dailyForecastScrollBox.enable_mouse_scrolling = true;
+        this._dailyForecastScrollBox.hide();
 
-        this._futureWeather.set_child(this._forecastScrollBox);
+        this._futureWeather.set_child(this._dailyForecastScrollBox);
 
-        if (cnt === undefined)
-            cnt = this._days_forecast;
-        for (let i = 0; i < cnt; i++) {
+        if (dailyCnt === undefined)
+            dailyCnt = this._days_forecast;
+        for (let i = 0; i < dailyCnt; i++) {
             let forecastWeather = {};
 
             forecastWeather.Icon = new St.Icon({
@@ -1634,13 +1634,13 @@ const OpenweatherMenuButton = new Lang.Class({
             bb.add_actor(forecastWeather.Icon);
             bb.add_actor(by);
 
-            this._forecast[i] = forecastWeather;
-            this._forecastBox.add_actor(bb);
+            this._dailyForecast[i] = forecastWeather;
+            this._dailyForecastBox.add_actor(bb);
         }
-        this._forecastScrollBox.add_actor(this._forecastBox);
+        this._dailyForecastScrollBox.add_actor(this._dailyForecastBox);
     },
 
-    _onScroll: function(actor, event) {
+    _onDailyScroll: function(actor, event) {
         let dx = 0;
         let dy = 0;
         switch (event.get_scroll_direction()) {
@@ -1656,7 +1656,7 @@ const OpenweatherMenuButton = new Lang.Class({
                 return true;
         }
 
-        this.scrollForecastBy(dy * this._forecastScrollBox.hscroll.adjustment.stepIncrement);
+        this.scrollDailyForecastBy(dy * this._dailyForecastScrollBox.hscroll.adjustment.stepIncrement);
         return false;
     }
 });

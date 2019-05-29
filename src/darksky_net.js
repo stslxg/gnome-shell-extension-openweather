@@ -110,13 +110,13 @@ function parseWeatherCurrent() {
         // but do it only if the cache has been cleared, otherwise we would
         // overwrite possibly valid data, that can be kept if the update fails
         // for some reason
-        if (this.forecastWeatherCache === undefined)
-            this.forecastWeatherCache = "in refresh";
+        if (this.forecastDailyWeatherCache === undefined)
+            this.forecastDailyWeatherCache = "in refresh";
         this.refreshWeatherCurrent();
         return;
     }
 
-    if ((this.forecastWeatherCache == "in refresh") ||
+    if ((this.forecastDailyWeatherCache == "in refresh") ||
         (this.currentWeatherCache == "in refresh"))
         return;
 
@@ -203,7 +203,7 @@ function refreshWeatherCurrent() {
     this.oldLocation = this.extractCoord(this._city);
 
     let params = {
-        exclude: 'minutely,hourly,alerts,flags',
+        exclude: 'minutely,alerts,flags',
         lang: this.fc_locale,
         units: 'si'
     };
@@ -215,8 +215,8 @@ function refreshWeatherCurrent() {
                 this.currentWeatherCache = json.currently;
 
             if (json.daily && json.daily.data) {
-                if (this.forecastWeatherCache != json.daily.data)
-                    this.forecastWeatherCache = json.daily.data;
+                if (this.forecastDailyWeatherCache != json.daily.data)
+                    this.forecastDailyWeatherCache = json.daily.data;
             }
 
             this.rebuildSelectCityItem();
@@ -230,14 +230,14 @@ function refreshWeatherCurrent() {
 }
 
 function parseWeatherForecast() {
-    if ((this.forecastWeatherCache == "in refresh") ||
+    if ((this.forecastDailyWeatherCache == "in refresh") ||
         (this.currentWeatherCache == "in refresh"))
         return;
 
-    if (this.forecastWeatherCache === undefined) {
+    if (this.forecastDailyWeatherCache === undefined) {
         // this is a reentrency guard, in this times set for both caches,
         // because they get updated with one call to Dark Sky
-        this.forecastWeatherCache = "in refresh";
+        this.forecastDailyWeatherCache = "in refresh";
         // but do it only if the cache has been cleared, otherwise we would
         // overwrite possibly valid data, that can be kept if the update fails
         // for some reason
@@ -247,16 +247,17 @@ function parseWeatherForecast() {
         return;
     }
 
-    let forecast = this.forecastWeatherCache;
+    // For daily forecast
+    let dailyForecast = this.forecastDailyWeatherCache;
     let beginOfDay = new Date(new Date().setHours(0, 0, 0, 0));
-    let cnt = Math.min(this._days_forecast, forecast.length);
-    if (cnt != this._days_forecast)
-        this.rebuildFutureWeatherUi(cnt);
+    let dailyCnt = Math.min(this._days_forecast, dailyForecast.length);
+    if (dailyCnt != this._days_forecast)
+        this.rebuildFutureWeatherUi(dailyCnt);
 
     // Refresh forecast
-    for (let i = 0; i < cnt; i++) {
-        let forecastUi = this._forecast[i];
-        let forecastData = forecast[i];
+    for (let i = 0; i < dailyCnt; i++) {
+        let forecastUi = this._dailyForecast[i];
+        let forecastData = dailyForecast[i];
         if (forecastData === undefined)
             continue;
 
