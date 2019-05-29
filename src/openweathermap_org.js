@@ -19,7 +19,9 @@
  *     Jens Lody <jens@jenslody.de>,
  * Copyright (C) 2018
  *     Taylor Raack <taylor@raack.info>
- *
+ * Copyright (C) 2019
+ *     Xuangui Huang <stslxg@gmail.com>
+ * 
  *
  * This file is part of gnome-shell-extension-openweather.
  *
@@ -417,17 +419,17 @@ function refreshWeatherCurrent() {
 }
 
 function parseWeatherForecast() {
-    if (this.forecastWeatherCache === undefined) {
+    if (this.forecastDailyWeatherCache === undefined) {
         // this is a reentrency guard
-        this.forecastWeatherCache = "in refresh";
+        this.forecastDailyWeatherCache = "in refresh";
         this.refreshWeatherForecast();
         return;
     }
 
-    if (this.forecastWeatherCache == "in refresh")
+    if (this.forecastDailyWeatherCache == "in refresh")
         return;
 
-    let forecast = this.forecastWeatherCache;
+    let dailyForecast = this.forecastDailyWeatherCache;
     let beginOfDay = new Date(new Date().setHours(0, 0, 0, 0));
 
     // OpenWeatherMap sometimes returns the previous day's forecast, especially in the early morning hours
@@ -436,7 +438,7 @@ function parseWeatherForecast() {
     // forecast index advance counter to skip previous day forecasts.
     let dateAdvanceIndex = 0;
     for (let i = 0; i < this._days_forecast; i++) {
-        let forecastData = forecast[i];
+        let forecastData = dailyForecast[i];
         if (forecastData === undefined)
             continue;
         let forecastDate = new Date(forecastData.dt * 1000).setHours(0,0,0,0);
@@ -450,9 +452,9 @@ function parseWeatherForecast() {
 
     // Refresh forecast
     for (let i = 0; i < this._days_forecast; i++) {
-        let forecastUi = this._forecast[i];
+        let forecastUi = this._dailyForecast[i];
         // make sure to use the dateAdvanceIndex to skip any previous day forecasts
-        let forecastData = forecast[i + dateAdvanceIndex];
+        let forecastData = dailyForecast[i + dateAdvanceIndex];
         if (forecastData === undefined)
             continue;
 
@@ -502,9 +504,9 @@ function refreshWeatherForecast() {
 
     this.load_json_async(OPENWEATHER_URL_FORECAST, params, function(json) {
         if (json && (Number(json.cod) == 200)) {
-            if (this.forecastWeatherCache != json.list) {
+            if (this.forecastDailyWeatherCache != json.list) {
                 this.owmCityId = json.city.id;
-                this.forecastWeatherCache = json.list;
+                this.forecastDailyWeatherCache = json.list;
             }
 
             this.parseWeatherForecast();

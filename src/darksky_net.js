@@ -17,7 +17,9 @@
  *     Jens Lody <jens@jenslody.de>
  * Copyright (C) 2014 -2018
  *     Jens Lody <jens@jenslody.de>,
- *
+ * Copyright (C) 2019
+ *     Xuangui Huang <stslxg@gmail.com>
+ * 
  *
  * This file is part of gnome-shell-extension-openweather.
  *
