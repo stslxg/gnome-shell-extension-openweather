@@ -102,6 +102,9 @@ Copyright &copy; 2013 - 2017
 Copyright &copy; 2018
 * Taylor Raack <taylor@raack.info>.
 
+Copyright &copy; 2019
+* Xuangui Huang <stslxg@gmail.com>.
+
 
 This file is part of *gnome-shell-extension-openweather*.
 
