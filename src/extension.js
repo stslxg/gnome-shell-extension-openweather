@@ -143,7 +143,7 @@ const OPENWEATHER_CONV_MPS_IN_KNOTS = 1.94384449;
 const OPENWEATHER_CONV_MPS_IN_FPS = 3.2808399;
 
 let _httpSession;
-let _currentWeatherCache, _forecastDailyWeatherCache;
+let _currentWeatherCache, _forecastDailyWeatherCache, _forecastHourlyWeatherCache;
 let _timeCacheCurrentWeather, _timeCacheForecastWeather;
 
 const OpenweatherMenuButton = new Lang.Class({
@@ -295,6 +295,7 @@ const OpenweatherMenuButton = new Lang.Class({
 
         this.currentWeatherCache = _currentWeatherCache;
         this.forecastDailyWeatherCache = _forecastDailyWeatherCache;
+        this.forecastHourlyWeatherCache = _forecastHourlyWeatherCache;
         if (_timeCacheForecastWeather !== undefined) {
             let diff = Math.floor(new Date(new Date() - _timeCacheForecastWeather).getTime() / 1000);
             if (diff < this._refresh_interval_forecast)
@@ -329,6 +330,7 @@ const OpenweatherMenuButton = new Lang.Class({
 
     stop: function() {
         _forecastDailyWeatherCache = this.forecastDailyWeatherCache;
+        _forecastHourlyWeatherCache = this.forecastHourlyWeatherCache;
         _currentWeatherCache = this.currentWeatherCache;
 
         if (_httpSession !== undefined)
@@ -481,10 +483,12 @@ const OpenweatherMenuButton = new Lang.Class({
                 this.switchProvider();
                 this.currentWeatherCache = undefined;
                 this.forecastDailyWeatherCache = undefined;
+                this.forecastHourlyWeatherCache = undefined;
             }
             if (this.locationChanged()) {
                 this.currentWeatherCache = undefined;
                 this.forecastDailyWeatherCache = undefined;
+                this.forecastHourlyWeatherCache = undefined;
             }
             this.rebuildButtonMenu();
             this.parseWeatherCurrent();
@@ -500,10 +504,12 @@ const OpenweatherMenuButton = new Lang.Class({
                 this.switchProvider();
                 this.currentWeatherCache = undefined;
                 this.forecastDailyWeatherCache = undefined;
+                this.forecastHourlyWeatherCache = undefined;
             }
             if (this.locationChanged()) {
                 this.currentWeatherCache = undefined;
                 this.forecastDailyWeatherCache = undefined;
+                this.forecastHourlyWeatherCache = undefined;
             }
             this.parseWeatherCurrent();
         }));
@@ -550,8 +556,10 @@ const OpenweatherMenuButton = new Lang.Class({
                 (Math.floor(new Date(now - _timeCacheCurrentWeather).getTime() / 1000) > this._refresh_interval_current))
                 this.currentWeatherCache = undefined;
             if (_timeCacheForecastWeather &&
-                (Math.floor(new Date(now - _timeCacheForecastWeather).getTime() / 1000) > this._refresh_interval_forecast))
+                (Math.floor(new Date(now - _timeCacheForecastWeather).getTime() / 1000) > this._refresh_interval_forecast)) {
                 this.forecastDailyWeatherCache = undefined;
+                this.forecastHourlyWeatherCache = undefined;
+            }
             this.parseWeatherCurrent();
         }
     },
@@ -911,6 +919,7 @@ const OpenweatherMenuButton = new Lang.Class({
         this._reloadButton.connect('clicked', Lang.bind(this, function() {
             this.currentWeatherCache = undefined;
             this.forecastDailyWeatherCache = undefined;
+            this.forecastHourlyWeatherCache = undefined;
             this.parseWeatherCurrent();
             this.recalcLayout();
         }));
@@ -1410,8 +1419,10 @@ const OpenweatherMenuButton = new Lang.Class({
         _timeCacheForecastWeather = new Date();
         this._timeoutForecast = Mainloop.timeout_add_seconds(interval, Lang.bind(this, function() {
             // only invalidate cached data, if we can connect the weather-providers server
-            if (this._connected && !this._idle)
+            if (this._connected && !this._idle) {
                 this.forecastDailyWeatherCache = undefined;
+                this.forecastHourlyWeatherCache = undefined;
+            }
             this.parseWeatherForecast();
             return true;
         }));
