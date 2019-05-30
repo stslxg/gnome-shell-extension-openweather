@@ -51,7 +51,9 @@ const ngettext = Gettext.ngettext;
 const OPENWEATHER_URL_HOST = 'api.openweathermap.org';
 const OPENWEATHER_URL_BASE = 'https://' + OPENWEATHER_URL_HOST + '/data/2.5/';
 const OPENWEATHER_URL_CURRENT = OPENWEATHER_URL_BASE + 'weather';
-const OPENWEATHER_URL_FORECAST = OPENWEATHER_URL_BASE + 'forecast/daily';
+const OPENWEATHER_URL_FORECAST_DAILY = OPENWEATHER_URL_BASE + 'forecast/daily';
+const OPENWEATHER_URL_FORECAST_HOURLY = OPENWEATHER_URL_BASE + 'forecast';
+
 
 function getWeatherIcon(code, night) {
 
@@ -419,75 +421,138 @@ function refreshWeatherCurrent() {
 }
 
 function parseWeatherForecast() {
-    if (this.forecastDailyWeatherCache === undefined) {
-        // this is a reentrency guard
+    // refresh hourly forecast first, then daily forecast
+    if ((this.forecastHourlyWeatherCache === undefined) &&
+        (this.forecastDailyWeatherCache === undefined)) {
+        this.forecastHourlyWeatherCache = "in refresh";
+        this.forecastDailyWeatherCache = undefined;
+        this.refreshWeatherForecast(true, false);
+        return;
+    }
+    if ((this.forecastHourlyWeatherCache !== undefined) &&
+        (this.forecastHourlyWeatherCache != "in refresh") &&
+        (this.forecastDailyWeatherCache === undefined)) {
         this.forecastDailyWeatherCache = "in refresh";
-        this.refreshWeatherForecast();
+        this.refreshWeatherForecast(false, true);
         return;
     }
 
-    if (this.forecastDailyWeatherCache == "in refresh")
-        return;
+    if ((this.forecastDailyWeatherCache !== undefined) &&
+        (this.forecastDailyWeatherCache != "in refresh")) {
+        let dailyForecast = this.forecastDailyWeatherCache;
+        let beginOfDay = new Date(new Date().setHours(0, 0, 0, 0));
 
-    let dailyForecast = this.forecastDailyWeatherCache;
-    let beginOfDay = new Date(new Date().setHours(0, 0, 0, 0));
-
-    // OpenWeatherMap sometimes returns the previous day's forecast, especially in the early morning hours
-    // of the lat / lng being queried. To prevent the first forecast element in the UI from being the previous
-    // day's forecast, check for the returned forecast elements being for a previous day and maintain a
-    // forecast index advance counter to skip previous day forecasts.
-    let dateAdvanceIndex = 0;
-    for (let i = 0; i < this._days_forecast; i++) {
-        let forecastData = dailyForecast[i];
-        if (forecastData === undefined)
-            continue;
-        let forecastDate = new Date(forecastData.dt * 1000).setHours(0,0,0,0);
-        if (forecastDate >= beginOfDay) {
-        	// forecast is at least at the beginning of the current day; no need to look any further
-        	break;
+        // OpenWeatherMap sometimes returns the previous day's forecast, especially in the early morning hours
+        // of the lat / lng being queried. To prevent the first forecast element in the UI from being the previous
+        // day's forecast, check for the returned forecast elements being for a previous day and maintain a
+        // forecast index advance counter to skip previous day forecasts.
+        let dateAdvanceIndex = 0;
+        for (let i = 0; i < this._days_forecast; i++) {
+            let forecastData = dailyForecast[i];
+            if (forecastData === undefined)
+                continue;
+            let forecastDate = new Date(forecastData.dt * 1000).setHours(0,0,0,0);
+            if (forecastDate >= beginOfDay) {
+                // forecast is at least at the beginning of the current day; no need to look any further
+                break;
+            }
+            // forecast is behind the current day, so advance the increment index
+            dateAdvanceIndex++;
         }
-        // forecast is behind the current day, so advance the increment index
-    	dateAdvanceIndex++;
+
+        // Refresh daily forecast
+        for (let i = 0; i < this._days_forecast; i++) {
+            let forecastUi = this._dailyForecast[i];
+            // make sure to use the dateAdvanceIndex to skip any previous day forecasts
+            let forecastData = dailyForecast[i + dateAdvanceIndex];
+            if (forecastData === undefined)
+                continue;
+
+            let t_low = this.formatTemperature(forecastData.temp.min);
+            let t_high = this.formatTemperature(forecastData.temp.max);
+
+            let comment = forecastData.weather[0].description;
+            if (this._translate_condition)
+                comment = OpenweathermapOrg.getWeatherCondition(forecastData.weather[0].id);
+
+            let forecastDate = new Date(forecastData.dt * 1000);
+            let dayLeft = Math.floor((forecastDate.getTime() - beginOfDay.getTime()) / 86400000);
+
+            let date_string = _("Today");
+            if (dayLeft == 1)
+                date_string = _("Tomorrow");
+            else if (dayLeft > 1)
+                date_string = ngettext("In %d day", "In %d days", dayLeft).format(dayLeft);
+            else if (dayLeft == -1)
+                date_string = _("Yesterday");
+            else if (dayLeft < -1)
+                date_string = ngettext("%d day ago", "%d days ago", -1 * dayLeft).format(-1 * dayLeft);
+
+            forecastUi.Day.text = date_string + ' (' + this.getLocaleDay(forecastDate.getDay()) + ')\n' + forecastDate.toLocaleDateString();
+            forecastUi.Temperature.text = '\u2193 ' + t_low + '    \u2191 ' + t_high;
+            forecastUi.Summary.text = comment;
+            forecastUi.Icon.icon_name = this.getWeatherIcon(forecastData.weather[0].id);
+        }
     }
+    if ((this.forecastHourlyWeatherCache !== undefined) &&
+        (this.forecastHourlyWeatherCache != "in refresh")) {
+        let hourlyForecast = this.forecastHourlyWeatherCache;
+        let beginOfDay = new Date(new Date().setHours(0, 0, 0, 0));
 
-    // Refresh forecast
-    for (let i = 0; i < this._days_forecast; i++) {
-        let forecastUi = this._dailyForecast[i];
-        // make sure to use the dateAdvanceIndex to skip any previous day forecasts
-        let forecastData = dailyForecast[i + dateAdvanceIndex];
-        if (forecastData === undefined)
-            continue;
+        // OpenWeatherMap sometimes returns the previous day's forecast, especially in the early morning hours
+        // of the lat / lng being queried. To prevent the first forecast element in the UI from being the previous
+        // day's forecast, check for the returned forecast elements being for a previous day and maintain a
+        // forecast index advance counter to skip previous day forecasts.
+        let dateAdvanceIndex = 0;
+        for (let i = 0; i < 12; i++) {
+            let forecastData = hourlyForecast[i];
+            if (forecastData === undefined)
+                continue;
+            let forecastDate = new Date(forecastData.dt * 1000).setHours(0,0,0,0);
+            if (forecastDate >= beginOfDay) {
+                // forecast is at least at the beginning of the current day; no need to look any further
+                break;
+            }
+            // forecast is behind the current day, so advance the increment index
+            dateAdvanceIndex++;
+        }
 
-        let t_low = this.formatTemperature(forecastData.temp.min);
-        let t_high = this.formatTemperature(forecastData.temp.max);
+        // Refresh hourly forecast
+        for (let i = 0; i < 12; i++) {
+            let forecastUi = this._hourlyForecast[i];
+            // make sure to use the dateAdvanceIndex to skip any previous day forecasts
+            let forecastData = hourlyForecast[i + dateAdvanceIndex];
+            if (forecastData === undefined)
+                continue;
 
-        let comment = forecastData.weather[0].description;
-        if (this._translate_condition)
-            comment = OpenweathermapOrg.getWeatherCondition(forecastData.weather[0].id);
+            let temp = this.formatTemperature(forecastData.main.temp);
 
-        let forecastDate = new Date(forecastData.dt * 1000);
-        let dayLeft = Math.floor((forecastDate.getTime() - beginOfDay.getTime()) / 86400000);
+            let comment = forecastData.weather[0].description;
+            if (this._translate_condition)
+                comment = OpenweathermapOrg.getWeatherCondition(forecastData.weather[0].id);
 
-        let date_string = _("Today");
-        if (dayLeft == 1)
-            date_string = _("Tomorrow");
-        else if (dayLeft > 1)
-            date_string = ngettext("In %d day", "In %d days", dayLeft).format(dayLeft);
-        else if (dayLeft == -1)
-            date_string = _("Yesterday");
-        else if (dayLeft < -1)
-            date_string = ngettext("%d day ago", "%d days ago", -1 * dayLeft).format(-1 * dayLeft);
+            let forecastDate = new Date(forecastData.dt * 1000);
+            let dayLeft = Math.floor((forecastDate.getTime() - beginOfDay.getTime()) / 86400000);
 
-        forecastUi.Day.text = date_string + ' (' + this.getLocaleDay(forecastDate.getDay()) + ')\n' + forecastDate.toLocaleDateString();
-        forecastUi.Temperature.text = '\u2193 ' + t_low + '    \u2191 ' + t_high;
-        forecastUi.Summary.text = comment;
-        forecastUi.Icon.icon_name = this.getWeatherIcon(forecastData.weather[0].id);
+            let date_string = _("Today");
+            if (dayLeft == 1)
+                date_string = _("Tomorrow");
+            else if (dayLeft > 1)
+                date_string = ngettext("In %d day", "In %d days", dayLeft).format(dayLeft);
+            else if (dayLeft == -1)
+                date_string = _("Yesterday");
+            else if (dayLeft < -1)
+                date_string = ngettext("%d day ago", "%d days ago", -1 * dayLeft).format(-1 * dayLeft);
+
+            forecastUi.Day.text = date_string + '\n' + forecastDate.toLocaleTimeString();
+            forecastUi.Temperature.text = ' ' + temp + '   ' + parseInt(forecastData.main.humidity) + '%';
+            forecastUi.Summary.text = comment;
+            forecastUi.Icon.icon_name = this.getWeatherIcon(forecastData.weather[0].id);
+        }
     }
 }
 
-function refreshWeatherForecast() {
-
-
+function refreshWeatherForecast(refreshHourly, refreshDaily) {
     this.oldLocation = this.extractCoord(this._city);
 
     if (this.oldLocation.search(",") == -1)
@@ -497,24 +562,44 @@ function refreshWeatherForecast() {
         lat: this.oldLocation.split(",")[0],
         lon: this.oldLocation.split(",")[1],
         units: 'metric',
-        cnt: '13'
+        cnt: '12'
     };
     if (this._appid)
         params.APPID = this._appid;
 
-    this.load_json_async(OPENWEATHER_URL_FORECAST, params, function(json) {
-        if (json && (Number(json.cod) == 200)) {
-            if (this.forecastDailyWeatherCache != json.list) {
-                this.owmCityId = json.city.id;
-                this.forecastDailyWeatherCache = json.list;
-            }
+    if (refreshHourly)
+        this.load_json_async(OPENWEATHER_URL_FORECAST_HOURLY, params, function(json) {
+            if (json && (Number(json.cod) == 200)) {
+                if (this.forecastHourlyWeatherCache != json.list) {
+                    this.owmCityId = json.city.id;
+                    this.forecastHourlyWeatherCache = json.list;
+                }
 
-            this.parseWeatherForecast();
-        } else {
-            // we are connected, but get no (or no correct) data, so try to reload
-            // after 10 minutes (recommendded by openweathermap.org)
-            this.reloadWeatherForecast(600);
-        }
-    });
-    this.reloadWeatherForecast(this._refresh_interval_forecast);
+                this.parseWeatherForecast();
+            } else {
+                // we are connected, but get no (or no correct) data, so try to reload
+                // after 10 minutes (recommendded by openweathermap.org)
+                global.log("No hourly data.");
+                this.reloadWeatherForecast(600);
+            }
+        });
+    if (refreshDaily) {
+        this.load_json_async(OPENWEATHER_URL_FORECAST_DAILY, params, function(json) {
+            if (json && (Number(json.cod) == 200)) {
+                if (this.forecastDailyWeatherCache != json.list) {
+                    this.owmCityId = json.city.id;
+                    this.forecastDailyWeatherCache = json.list;
+                }
+
+                this.parseWeatherForecast();
+            } else {
+                global.log("No daily data.");
+                // we are connected, but get no (or no correct) data, so try to reload
+                // after 10 minutes (recommendded by openweathermap.org)
+                this.reloadWeatherForecast(600);
+            }
+        });
+
+        this.reloadWeatherForecast(this._refresh_interval_forecast);
+    }
 }
