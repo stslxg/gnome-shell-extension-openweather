@@ -231,23 +231,30 @@ const OpenweatherMenuButton = new Lang.Class({
 
         // Current weather
         this._currentWeather = new St.Bin();
-        // Future weather
-        this._futureWeather = new St.Bin();
+        // Future hourly weather
+        this._futureHourlyWeather = new St.Bin();
+        // Future daily weather
+        this._futureDailyWeather = new St.Bin();
 
         // Putting the popup item together
         let _itemCurrent = new PopupMenu.PopupBaseMenuItem({
             reactive: false
         });
-        let _itemFuture = new PopupMenu.PopupBaseMenuItem({
+        let _itemFutureHourly = new PopupMenu.PopupBaseMenuItem({
+            reactive: false
+        });
+        let _itemFutureDaily = new PopupMenu.PopupBaseMenuItem({
             reactive: false
         });
 
         if (ExtensionUtils.versionCheck(['3.8'], Config.PACKAGE_VERSION)) {
             _itemCurrent.addActor(this._currentWeather);
-            _itemFuture.addActor(this._futureWeather);
+            _itemFutureHourly.addActor(this._futureHourlyWeather);
+            _itemFutureDaily.addActor(this._futureDailyWeather);
         } else {
             _itemCurrent.actor.add_actor(this._currentWeather);
-            _itemFuture.actor.add_actor(this._futureWeather);
+            _itemFutureHourly.actor.add_actor(this._futureHourlyWeather);
+            _itemFutureDaily.actor.add_actor(this._futureDailyWeather);
         }
 
         this.menu.addMenuItem(_itemCurrent);
@@ -255,7 +262,12 @@ const OpenweatherMenuButton = new Lang.Class({
         this._separatorItem = new PopupMenu.PopupSeparatorMenuItem();
         this.menu.addMenuItem(this._separatorItem);
 
-        this.menu.addMenuItem(_itemFuture);
+        this.menu.addMenuItem(_itemFutureHourly);
+
+        this._separatorItem2 = new PopupMenu.PopupSeparatorMenuItem();
+        this.menu.addMenuItem(this._separatorItem2);
+
+        this.menu.addMenuItem(_itemFutureDaily);
 
         let item = new PopupMenu.PopupSeparatorMenuItem();
         this.menu.addMenuItem(item);
@@ -1434,8 +1446,10 @@ const OpenweatherMenuButton = new Lang.Class({
     },
 
     destroyFutureWeather: function() {
-        if (this._futureWeather.get_child() !== null)
-            this._futureWeather.get_child().destroy();
+        if (this._futureHourlyWeather.get_child() !== null)
+            this._futureHourlyWeather.get_child().destroy();
+        if (this._futureDailyWeather.get_child() !== null)
+            this._futureDailyWeather.get_child().destroy();
     },
 
     rebuildCurrentWeatherUi: function() {
@@ -1576,6 +1590,22 @@ const OpenweatherMenuButton = new Lang.Class({
     rebuildFutureWeatherUi: function(dailyCnt) {
         this.destroyFutureWeather();
 
+        // For hourly forecast
+        this._hourlyForecast = {}; // TODO: change into array
+        this._hourlyForecastBox = new St.BoxLayout({
+            x_align: this._center_forecast ? St.Align.END : St.Align.START,
+            style_class: 'openweather-forecast-box'
+        });       
+        this._futureHourlyWeather.set_child(this._hourlyForecastBox);
+        let forecastWeather = {};
+        forecastWeather.Summary = new St.Label({
+            style_class: 'system-menu-action  openweather-forecast-summary'
+        });
+        this._hourlyForecastBox.add_actor(forecastWeather.Summary);
+        this._hourlyForecast = forecastWeather;
+
+        // For daily forecast
+
         this._dailyForecast = [];
         this._dailyForecastBox = new St.BoxLayout({
             x_align: this._center_forecast ? St.Align.END : St.Align.START,
@@ -1609,7 +1639,7 @@ const OpenweatherMenuButton = new Lang.Class({
         this._dailyForecastScrollBox.enable_mouse_scrolling = true;
         this._dailyForecastScrollBox.hide();
 
-        this._futureWeather.set_child(this._dailyForecastScrollBox);
+        this._futureDailyWeather.set_child(this._dailyForecastScrollBox);
 
         if (dailyCnt === undefined)
             dailyCnt = this._days_forecast;

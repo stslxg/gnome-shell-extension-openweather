@@ -225,8 +225,8 @@ function refreshWeatherCurrent() {
             }
 
             if (json.hourly && json.hourly.data) {
-                if (this.forecastHourlyWeatherCache != json.hourly.data)
-                    this.forecastHourlyWeatherCache = json.hourly.data;
+                if (this.forecastHourlyWeatherCache != json.hourly)
+                    this.forecastHourlyWeatherCache = json.hourly;
             }
 
             this.rebuildSelectCityItem();
@@ -261,6 +261,11 @@ function parseWeatherForecast() {
         this.refreshWeatherCurrent();
         return;
     }
+
+    // For hourly forecast
+    let hourlyForecast = this.forecastHourlyWeatherCache;
+    let forecastUi = this._hourlyForecast;
+    forecastUi.Summary.text = hourlyForecast.summary;
 
     // For daily forecast
     let dailyForecast = this.forecastDailyWeatherCache;
