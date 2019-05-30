@@ -1071,9 +1071,20 @@ const OpenweatherMenuButton = new Lang.Class({
         if (this._buttonBox1MinWidth === undefined)
             this._buttonBox1MinWidth = this._buttonBox1.get_width();
         this._buttonBox1.set_width(Math.max(this._buttonBox1MinWidth, this._currentWeather.get_width() - this._buttonBox2.get_width()));
-        if (this._dailyForecastScrollBox !== undefined && this._dailyForecastBox !== undefined && this._currentWeather !== undefined) {
+        if (this._dailyForecastScrollBox !== undefined && this._dailyForecastBox !== undefined &&
+            this._hourlyForecastScrollBox != undefined && this._hourlyForecastBox !== undefined &&
+            this._currentWeather !== undefined) {
+            this._hourlyForecastScrollBox.set_width(Math.max(this._currentWeather.get_width(), (this._buttonBox1.get_width() + this._buttonBox2.get_width())));
+            this._hourlyForecastScrollBox.show();
             this._dailyForecastScrollBox.set_width(Math.max(this._currentWeather.get_width(), (this._buttonBox1.get_width() + this._buttonBox2.get_width())));
             this._dailyForecastScrollBox.show();
+            if (this._hourlyForecastBox.get_preferred_width(this._hourlyForecastBox.get_height())[0] > this._currentWeather.get_width()) {
+                this._hourlyForecastScrollBox.hscroll.margin_top = 10;
+                this._hourlyForecastScrollBox.hscroll.show();
+            } else {
+                this._hourlyForecastScrollBox.hscroll.margin_top = 0;
+                this._hourlyForecastScrollBox.hscroll.hide();
+            }
             if (this._dailyForecastBox.get_preferred_width(this._dailyForecastBox.get_height())[0] > this._currentWeather.get_width()) {
                 this._dailyForecastScrollBox.hscroll.margin_top = 10;
                 this._dailyForecastScrollBox.hscroll.show();
@@ -1587,22 +1598,88 @@ const OpenweatherMenuButton = new Lang.Class({
         this._dailyForecastScrollBox.hscroll.adjustment.value += delta;
     },
 
+    scrollHourlyForecastBy: function(delta) {
+        if (this._hourlyForecastScrollBox === undefined)
+            return;
+        this._hourlyForecastScrollBox.hscroll.adjustment.value += delta;
+    },
+
     rebuildFutureWeatherUi: function(dailyCnt) {
         this.destroyFutureWeather();
 
         // For hourly forecast
-        this._hourlyForecast = {}; // TODO: change into array
+        this._hourlyForecast = [];
         this._hourlyForecastBox = new St.BoxLayout({
             x_align: this._center_forecast ? St.Align.END : St.Align.START,
             style_class: 'openweather-forecast-box'
-        });       
-        this._futureHourlyWeather.set_child(this._hourlyForecastBox);
-        let forecastWeather = {};
-        forecastWeather.Summary = new St.Label({
-            style_class: 'system-menu-action  openweather-forecast-summary'
         });
-        this._hourlyForecastBox.add_actor(forecastWeather.Summary);
-        this._hourlyForecast = forecastWeather;
+        this._hourlyForecastScrollBox = new St.ScrollView({
+            style_class: 'openweather-forecasts'
+        });
+
+        let hourlyPan = new Clutter.PanAction({
+            interpolate: true
+        });
+        hourlyPan.connect('pan', Lang.bind(this, function(action) {
+
+            let[dist, dx, dy] = action.get_motion_delta(0);
+
+            this.scrollHourlyForecastBy(-1 * (dx / this._hourlyForecastScrollBox.width) * this._hourlyForecastScrollBox.hscroll.adjustment.page_size);
+            return false;
+        }));
+        this._hourlyForecastScrollBox.add_action(hourlyPan);
+
+        this._hourlyForecastScrollBox.connect('scroll-event', Lang.bind(this, this._onHourlyScroll));
+        this._hourlyForecastScrollBox.hscroll.connect('scroll-event', Lang.bind(this, this._onHourlyScroll));
+
+        this._hourlyForecastScrollBox.hscroll.margin_right = 25;
+        this._hourlyForecastScrollBox.hscroll.margin_left = 25;
+        this._hourlyForecastScrollBox.hscroll.hide();
+        this._hourlyForecastScrollBox.vscrollbar_policy = Gtk.PolicyType.NEVER;
+        this._hourlyForecastScrollBox.hscrollbar_policy = Gtk.PolicyType.AUTOMATIC;
+        this._hourlyForecastScrollBox.enable_mouse_scrolling = true;
+        this._hourlyForecastScrollBox.hide();
+
+        this._futureHourlyWeather.set_child(this._hourlyForecastScrollBox);
+
+        for (let i = 0; i < 12; i++) {
+            let forecastWeather = {};
+
+            forecastWeather.Icon = new St.Icon({
+                icon_size: 48,
+                icon_name: 'view-refresh',
+                style_class: 'system-menu-action openweather-forecast-icon ' + this.getIconType()
+            });
+            forecastWeather.Day = new St.Label({
+                style_class: 'popup-menu-item popup-status-menu-item openweather-forecast-day'
+            });
+            forecastWeather.Summary = new St.Label({
+                style_class: 'system-menu-action  openweather-forecast-summary'
+            });
+            forecastWeather.Summary.clutter_text.line_wrap = true;
+            forecastWeather.Temperature = new St.Label({
+                style_class: 'system-menu-action  openweather-forecast-temperature'
+            });
+
+            let by = new St.BoxLayout({
+                vertical: true,
+                style_class: 'openweather-forecast-databox-small'
+            });
+            by.add_actor(forecastWeather.Day);
+            if (this._comment_in_forecast)
+                by.add_actor(forecastWeather.Summary);
+            by.add_actor(forecastWeather.Temperature);
+
+            let bb = new St.BoxLayout({
+                style_class: 'openweather-forecast-iconbox'
+            });
+            bb.add_actor(forecastWeather.Icon);
+            bb.add_actor(by);
+
+            this._hourlyForecast[i] = forecastWeather;
+            this._hourlyForecastBox.add_actor(bb);
+        }
+        this._hourlyForecastScrollBox.add_actor(this._hourlyForecastBox);
 
         // For daily forecast
 
@@ -1700,6 +1777,26 @@ const OpenweatherMenuButton = new Lang.Class({
         }
 
         this.scrollDailyForecastBy(dy * this._dailyForecastScrollBox.hscroll.adjustment.stepIncrement);
+        return false;
+    },
+
+    _onHourlyScroll: function(actor, event) {
+        let dx = 0;
+        let dy = 0;
+        switch (event.get_scroll_direction()) {
+            case Clutter.ScrollDirection.UP:
+            case Clutter.ScrollDirection.RIGHT:
+                dy = -1;
+                break;
+            case Clutter.ScrollDirection.DOWN:
+            case Clutter.ScrollDirection.LEFT:
+                dy = 1;
+                break;
+            default:
+                return true;
+        }
+
+        this.scrollHourlyForecastBy(dy * this._hourlyForecastScrollBox.hscroll.adjustment.stepIncrement);
         return false;
     }
 });

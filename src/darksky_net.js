@@ -264,17 +264,50 @@ function parseWeatherForecast() {
 
     // For hourly forecast
     let hourlyForecast = this.forecastHourlyWeatherCache;
-    let forecastUi = this._hourlyForecast;
-    forecastUi.Summary.text = hourlyForecast.summary;
+    let beginOfDay = new Date(new Date().setHours(0, 0, 0, 0));
+    
+    // Refresh hourly forecast
+    for (let i = 0; i < 12; i++) {
+        let forecastUi = this._hourlyForecast[i];
+        let forecastData = hourlyForecast.data[i];
+        if (forecastData === undefined)
+            continue;
+
+        let temp = this.formatTemperature(forecastData.temperature);
+
+        let comment = forecastData.summary;
+        let forecastDate = new Date(forecastData.time * 1000);
+        let dayLeft = Math.floor((forecastDate.getTime() - beginOfDay.getTime()) / 86400000);
+
+        let date_string = _("Today");
+
+        if (dayLeft == 1)
+            date_string = _("Tomorrow");
+        else if (dayLeft > 1)
+            date_string = ngettext("In %d day", "In %d days", dayLeft).format(dayLeft);
+        else if (dayLeft == -1)
+            date_string = _("Yesterday");
+        else if (dayLeft < -1) {
+            dayLeft *= -1;
+            date_string = ngettext("%d day ago", "%d days ago", dayLeft).format(dayLeft);
+        }
+
+        forecastUi.Day.text = date_string + '\n' + forecastDate.toLocaleTimeString();
+        forecastUi.Temperature.text = ' ' + temp + '   ' + parseInt(forecastData.humidity * 100) + '%';
+        forecastUi.Summary.text = comment;
+
+        forecastUi.Icon.icon_name = this.getWeatherIcon(forecastData.icon,
+            forecastData.windSpeed,
+            forecastData.cloudCover);
+    }
 
     // For daily forecast
     let dailyForecast = this.forecastDailyWeatherCache;
-    let beginOfDay = new Date(new Date().setHours(0, 0, 0, 0));
     let dailyCnt = Math.min(this._days_forecast, dailyForecast.length);
     if (dailyCnt != this._days_forecast)
         this.rebuildFutureWeatherUi(dailyCnt);
     
-    // Refresh forecast
+    // Refresh daily forecast
     for (let i = 0; i < dailyCnt; i++) {
         let forecastUi = this._dailyForecast[i];
         let forecastData = dailyForecast[i];

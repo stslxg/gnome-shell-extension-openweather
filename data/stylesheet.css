@@ -104,6 +104,10 @@ padding-right: 15px;
 min-width: 160px;
 }
 
+.openweather-forecast-databox-small {
+    min-width: 100px;
+}
+
 .openweather-forecast-day {
 font-size: 90%;
 spacing: 0;
