@@ -114,7 +114,7 @@ function parseWeatherCurrent() {
         // for some reason
         if (this.forecastDailyWeatherCache === undefined)
             this.forecastDailyWeatherCache = "in refresh";
-        if (this.forecastHourlyWeatherCache == undefined)
+        if (this.forecastHourlyWeatherCache === undefined)
             this.forecastHourlyWeatherCache = "in refresh";
         this.refreshWeatherCurrent();
         return;
@@ -246,12 +246,12 @@ function parseWeatherForecast() {
         return;
 
     if ((this.forecastDailyWeatherCache === undefined) ||
-        (this.forecastHourlyWeatherCache == undefined)) {
+        (this.forecastHourlyWeatherCache === undefined)) {
         // this is a reentrency guard, in this times set for both caches,
         // because they get updated with one call to Dark Sky
-        if (this.forecastDailyWeatherCache == undefined)
+        if (this.forecastDailyWeatherCache === undefined)
             this.forecastDailyWeatherCache = "in refresh";
-        if (this.forecastHourlyWeatherCache == undefined)
+        if (this.forecastHourlyWeatherCache === undefined)
             this.forecastHourlyWeatherCache = "in refresh";
         // but do it only if the cache has been cleared, otherwise we would
         // overwrite possibly valid data, that can be kept if the update fails

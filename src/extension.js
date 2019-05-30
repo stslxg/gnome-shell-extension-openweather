@@ -1072,7 +1072,7 @@ const OpenweatherMenuButton = new Lang.Class({
             this._buttonBox1MinWidth = this._buttonBox1.get_width();
         this._buttonBox1.set_width(Math.max(this._buttonBox1MinWidth, this._currentWeather.get_width() - this._buttonBox2.get_width()));
         if (this._dailyForecastScrollBox !== undefined && this._dailyForecastBox !== undefined &&
-            this._hourlyForecastScrollBox != undefined && this._hourlyForecastBox !== undefined &&
+            this._hourlyForecastScrollBox !== undefined && this._hourlyForecastBox !== undefined &&
             this._currentWeather !== undefined) {
             this._hourlyForecastScrollBox.set_width(Math.max(this._currentWeather.get_width(), (this._buttonBox1.get_width() + this._buttonBox2.get_width())));
             this._hourlyForecastScrollBox.show();
