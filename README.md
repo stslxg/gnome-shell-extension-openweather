@@ -1,3 +1,11 @@
+This is a very old fork from [gnome-shell-extension-openweather](https://gitlab.com/jenslody/gnome-shell-extension-openweather).
+
+I added the functionality to show hourly forecasts for the next 12 hours, using data from DarkSky, in the branch `add-hourly-forecast`.
+
+Following is the original README.
+
+---
+
 ![Screenshot](https://gitlab.com/jenslody/gnome-shell-extension-openweather/raw/master/data/Screenshot.jpg)
 
 *gnome-shell-extension-openweather* is a simple extension for displaying weather conditions and forecasts in GNOME Shell, featuring support for multiple locations, no need for WOEID, a symmetrical layout and a settings panel through *gnome-shell-extension-prefs*.
